@@ -6,6 +6,7 @@ Provides function extraction, complexity calculation, and issue detection.
 
 import ast
 from typing import List, Dict, Any, Optional
+from app.workflows.code_review.complexity_analyzer import analyze_code_complexity
 
 
 def extract_functions(code: str) -> List[Dict[str, Any]]:
@@ -317,3 +318,19 @@ def calculate_quality_score(issues: List[Dict], complexity: Dict[str, int]) -> f
 
     # Clamp to 0-100
     return max(0.0, min(100.0, score))
+
+
+def get_complexity_analysis(code: str) -> Dict[str, Dict]:
+    """
+    Get detailed complexity analysis for all functions.
+
+    Args:
+        code: Python source code
+
+    Returns:
+        Dictionary mapping function names to analysis with:
+        - time_complexity: Big O notation for time
+        - space_complexity: Big O notation for space
+        - explanation: Human-readable explanation of approach
+    """
+    return analyze_code_complexity(code)

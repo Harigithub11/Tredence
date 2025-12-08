@@ -11,7 +11,8 @@ from app.workflows.code_review.tools import (
     calculate_cyclomatic_complexity,
     detect_issues,
     generate_suggestions,
-    calculate_quality_score
+    calculate_quality_score,
+    get_complexity_analysis
 )
 from app.llm import analyze_code
 
@@ -60,10 +61,11 @@ async def calculate_complexity_node(state: WorkflowState) -> WorkflowState:
     Output state data:
     - complexity: Dictionary mapping function names to complexity scores
     - avg_complexity: Average complexity across all functions
+    - complexity_analysis: Detailed Big-O analysis per function
     """
     code = state.data.get("code", "")
 
-    # Calculate complexity
+    # Calculate cyclomatic complexity
     complexity = calculate_cyclomatic_complexity(code)
     state.data["complexity"] = complexity
 
@@ -73,6 +75,10 @@ async def calculate_complexity_node(state: WorkflowState) -> WorkflowState:
         state.data["avg_complexity"] = round(avg_complexity, 2)
     else:
         state.data["avg_complexity"] = 0.0
+
+    # Get detailed Big-O complexity analysis
+    complexity_analysis = get_complexity_analysis(code)
+    state.data["complexity_analysis"] = complexity_analysis
 
     return state
 
