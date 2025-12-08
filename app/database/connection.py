@@ -12,7 +12,7 @@ from sqlalchemy.ext.asyncio import (
     create_async_engine,
     async_sessionmaker
 )
-from sqlalchemy.pool import NullPool, QueuePool
+from sqlalchemy.pool import NullPool
 
 from app.config import settings
 from app.database.models import Base
@@ -36,19 +36,25 @@ def get_engine() -> AsyncEngine:
     global _engine
 
     if _engine is None:
-        # Determine if we should use connection pooling
+        # Configure engine based on database type
+        engine_kwargs = {
+            "echo": settings.DEBUG,  # Log SQL queries in debug mode
+            "future": True,  # Use SQLAlchemy 2.0 API
+        }
+
         # For SQLite (testing), use NullPool
-        # For PostgreSQL (production), use QueuePool
-        poolclass = NullPool if "sqlite" in settings.DATABASE_URL else QueuePool
+        # For PostgreSQL (production), use default async pool
+        if "sqlite" in settings.DATABASE_URL:
+            engine_kwargs["poolclass"] = NullPool
+        else:
+            # For PostgreSQL with async, use AsyncAdaptedQueuePool (default)
+            engine_kwargs["pool_pre_ping"] = True
+            engine_kwargs["pool_size"] = 5
+            engine_kwargs["max_overflow"] = 10
 
         _engine = create_async_engine(
             settings.DATABASE_URL,
-            echo=settings.DEBUG,  # Log SQL queries in debug mode
-            future=True,  # Use SQLAlchemy 2.0 API
-            poolclass=poolclass,
-            pool_pre_ping=True,  # Verify connections before using
-            pool_size=5,  # Number of permanent connections
-            max_overflow=10,  # Additional connections when pool is full
+            **engine_kwargs
         )
 
     return _engine
