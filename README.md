@@ -396,9 +396,9 @@ This project is created as part of an internship assignment.
 
 ## 📞 Contact
 
-**Author**: Your Name
-**Email**: your.email@example.com
-**GitHub**: https://github.com/yourusername/agent-workflow-engine
+**Author**: E Hari
+**Email**: enguvahari@gmail.com
+**GitHub**: https://github.com/Harigithub11/Tredence/
 
 ---
 
