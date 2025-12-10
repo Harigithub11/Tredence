@@ -120,16 +120,36 @@ async def execute_workflow_background(
             edges_def = definition.get("edges", [])
             entry_point = definition.get("entry_point")
 
-            # For now, we'll use lambda nodes as placeholders
-            # In real implementation, these would map to actual registered tools
+            # Map node names to actual implementations
             from app.core.node import LambdaNode
+
+            # Node function registry
+            node_function_registry = {}
+
+            # Register code_review workflow nodes if this is a code_review graph
+            if graph.name == "code_review":
+                from app.workflows.code_review.nodes import (
+                    extract_functions_node,
+                    calculate_complexity_node,
+                    detect_issues_node,
+                    suggest_improvements_node,
+                    check_quality_node
+                )
+                node_function_registry = {
+                    "extract": extract_functions_node,
+                    "complexity": calculate_complexity_node,
+                    "detect": detect_issues_node,
+                    "suggest": suggest_improvements_node,
+                    "check": check_quality_node
+                }
 
             for node_def in nodes_def:
                 node_name = node_def["name"]
-                # Placeholder: just pass state through
+                # Use registered function or placeholder
+                transform_func = node_function_registry.get(node_name, lambda state: state)
                 builder.node(node_name, LambdaNode(
                     name=node_name,
-                    transform=lambda state: state  # Identity function
+                    transform=transform_func
                 ))
 
             for edge_def in edges_def:
@@ -144,7 +164,7 @@ async def execute_workflow_background(
             initial_state = WorkflowState(
                 workflow_id=graph.name,
                 run_id=run_id,
-                **initial_state_dict
+                data=initial_state_dict
             )
 
             # Execute workflow
@@ -226,6 +246,10 @@ async def run_graph(
         **request.initial_state
     }
 
+    # Add use_llm to initial state if provided
+    if request.use_llm is not None:
+        initial_state["use_llm"] = request.use_llm
+
     # Create run record
     run = await run_repo.create(
         run_id=run_id,
@@ -240,7 +264,7 @@ async def run_graph(
         execute_workflow_background,
         run_id=run_id,
         graph_id=graph.id,
-        initial_state_dict=request.initial_state
+        initial_state_dict=initial_state  # Use the modified initial_state, not request.initial_state
     )
 
     return RunResponse.model_validate(run)

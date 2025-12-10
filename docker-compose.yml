@@ -1,6 +1,7 @@
-version: '3.8'
+# Docker Compose configuration for Agent Workflow Engine
 
 services:
+  # PostgreSQL Database
   postgres:
     image: postgres:16-alpine
     container_name: workflow_engine_db
@@ -17,25 +18,89 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+    networks:
+      - workflow_network
 
+  # Redis Cache (for future enhancements)
+  redis:
+    image: redis:7-alpine
+    container_name: workflow_engine_redis
+    ports:
+      - "6380:6379"
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - workflow_network
+
+  # FastAPI Application
   app:
     build: .
     container_name: workflow_engine_app
     ports:
-      - "8000:8000"
+      - "8001:8000"
     environment:
       DATABASE_URL: postgresql+asyncpg://workflow_user:workflow_pass@postgres:5432/workflow_engine
+      REDIS_URL: redis://redis:6379/0
       DEBUG: "True"
       LOG_LEVEL: INFO
+      ENABLE_LLM: "${ENABLE_LLM:-True}"
+      GEMINI_API_KEY: "${GEMINI_API_KEY:-}"
+      HOST: 0.0.0.0
+      PORT: 8000
     depends_on:
       postgres:
+        condition: service_healthy
+      redis:
         condition: service_healthy
     volumes:
       - ./app:/app/app
       - ./alembic:/app/alembic
+      - ./tests:/app/tests
     command: >
       sh -c "alembic upgrade head &&
              uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import requests; requests.get('http://localhost:8000/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    networks:
+      - workflow_network
+
+  # pgAdmin (Database Management UI - Optional)
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: workflow_engine_pgadmin
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@workflow.com
+      PGADMIN_DEFAULT_PASSWORD: admin
+      PGADMIN_CONFIG_SERVER_MODE: 'False'
+    ports:
+      - "5050:80"
+    depends_on:
+      - postgres
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+    networks:
+      - workflow_network
+    profiles:
+      - tools
 
 volumes:
   postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+  pgadmin_data:
+    driver: local
+
+networks:
+  workflow_network:
+    driver: bridge

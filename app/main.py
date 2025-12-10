@@ -19,6 +19,15 @@ from app.database.connection import (
 from app.database.repositories import RunRepository, ExecutionLogRepository
 from app.api.routes import graph
 from app.api.models import HealthResponse
+from app.websocket.manager import ConnectionManager as WebSocketManager
+from app.websocket.messages import (
+    StatusUpdateMessage,
+    NodeCompletedMessage,
+    WorkflowCompletedMessage,
+    ErrorMessage,
+    PongMessage,
+    LogMessage
+)
 
 
 @asynccontextmanager
@@ -99,42 +108,7 @@ async def health_check():
 
 
 # WebSocket connection manager
-class ConnectionManager:
-    """Manages WebSocket connections for real-time updates"""
-
-    def __init__(self):
-        self.active_connections: dict[str, list[WebSocket]] = {}
-
-    async def connect(self, websocket: WebSocket, run_id: str):
-        """Accept and register a WebSocket connection"""
-        await websocket.accept()
-        if run_id not in self.active_connections:
-            self.active_connections[run_id] = []
-        self.active_connections[run_id].append(websocket)
-
-    def disconnect(self, websocket: WebSocket, run_id: str):
-        """Remove a WebSocket connection"""
-        if run_id in self.active_connections:
-            self.active_connections[run_id].remove(websocket)
-            if not self.active_connections[run_id]:
-                del self.active_connections[run_id]
-
-    async def send_message(self, run_id: str, message: dict):
-        """Send message to all connections for a run_id"""
-        if run_id in self.active_connections:
-            disconnected = []
-            for connection in self.active_connections[run_id]:
-                try:
-                    await connection.send_json(message)
-                except:
-                    disconnected.append(connection)
-
-            # Clean up disconnected connections
-            for connection in disconnected:
-                self.disconnect(connection, run_id)
-
-
-manager = ConnectionManager()
+manager = WebSocketManager()
 
 
 @app.websocket("/ws/run/{run_id}")
@@ -183,38 +157,39 @@ async def websocket_run_updates(
                 await websocket.close()
                 return
 
-            # Send initial status
-            await websocket.send_json({
-                "type": "status",
-                "run_id": run_id,
-                "status": run.status.value,
-                "started_at": run.started_at.isoformat() if run.started_at else None
-            })
+            # Send initial status with structured message
+            status_msg = StatusUpdateMessage(
+                run_id=run_id,
+                status=run.status.value,
+                started_at=run.started_at.isoformat() if run.started_at else None
+            )
+            await websocket.send_json(status_msg.model_dump())
 
             # Send existing logs
             logs = await log_repo.get_by_run_id(run.id)
             for log in logs:
-                await websocket.send_json({
-                    "type": "log",
-                    "node_name": log.node_name,
-                    "status": log.status.value,
-                    "iteration": log.iteration,
-                    "execution_time_ms": log.execution_time_ms,
-                    "timestamp": log.timestamp.isoformat(),
-                    "error_message": log.error_message
-                })
+                log_msg = LogMessage(
+                    run_id=run_id,
+                    node_name=log.node_name,
+                    status=log.status.value,
+                    iteration=log.iteration,
+                    execution_time_ms=log.execution_time_ms,
+                    error_message=log.error_message,
+                    timestamp=log.timestamp.isoformat()
+                )
+                await websocket.send_json(log_msg.model_dump())
 
             # Send final state if completed
             if run.status.value in ["completed", "failed", "cancelled"]:
-                await websocket.send_json({
-                    "type": "final",
-                    "status": run.status.value,
-                    "final_state": run.final_state,
-                    "total_iterations": run.total_iterations,
-                    "total_execution_time_ms": run.total_execution_time_ms,
-                    "completed_at": run.completed_at.isoformat() if run.completed_at else None,
-                    "error_message": run.error_message
-                })
+                completion_msg = WorkflowCompletedMessage(
+                    run_id=run_id,
+                    status=run.status.value,
+                    final_state=run.final_state or {},
+                    total_duration_ms=run.total_execution_time_ms or 0.0,
+                    total_iterations=run.total_iterations or 0,
+                    error_message=run.error_message
+                )
+                await websocket.send_json(completion_msg.model_dump())
 
         # Keep connection alive and wait for client messages
         while True:
@@ -224,7 +199,8 @@ async def websocket_run_updates(
 
             # Echo back or handle client requests
             if data == "ping":
-                await websocket.send_json({"type": "pong"})
+                pong_msg = PongMessage()
+                await websocket.send_json(pong_msg.model_dump())
 
     except WebSocketDisconnect:
         manager.disconnect(websocket, run_id)
