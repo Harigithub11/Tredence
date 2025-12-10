@@ -179,17 +179,43 @@ function calculateProgress(run: WorkflowRun, messages: any[]): number {
   if (run.status === 'failed') return 100
   if (run.status === 'pending') return 0
 
-  // Calculate based on messages
-  const progressMsg = messages.find((m: any) => m.type === 'progress_update')
-  if (progressMsg?.progress_percentage) {
-    return progressMsg.progress_percentage
-  }
+  // Calculate based on node execution messages
+  const nodes = ['extract_functions', 'analyze_complexity', 'detect_issues', 'improve_code', 'validate_tests']
+  const completedNodes = new Set<string>()
 
-  // Default for running
-  return 50
+  // Find all completed nodes from execution logs
+  messages.forEach((msg: any) => {
+    if (msg.type === 'execution_log' && msg.status === 'completed' && msg.node_name) {
+      completedNodes.add(msg.node_name)
+    }
+  })
+
+  // Calculate percentage based on completed nodes
+  if (completedNodes.size === 0) return 10 // Just started
+  return Math.min(95, Math.round((completedNodes.size / nodes.length) * 100))
 }
 
 function getCurrentNode(messages: any[]): string | null {
-  const statusMsg = messages.findLast((m: any) => m.type === 'status_update' && m.current_node)
-  return statusMsg?.current_node || null
+  // Find the last started node that hasn't completed yet
+  const startedNodes: string[] = []
+  const completedNodes = new Set<string>()
+
+  messages.forEach((msg: any) => {
+    if (msg.type === 'execution_log' && msg.node_name) {
+      if (msg.status === 'started') {
+        startedNodes.push(msg.node_name)
+      } else if (msg.status === 'completed') {
+        completedNodes.add(msg.node_name)
+      }
+    }
+  })
+
+  // Return the last started node that hasn't completed
+  for (let i = startedNodes.length - 1; i >= 0; i--) {
+    if (!completedNodes.has(startedNodes[i])) {
+      return startedNodes[i]
+    }
+  }
+
+  return null
 }

@@ -215,14 +215,19 @@ CURRENT COMPLEXITY:
 Your task:
 1. Identify the algorithm currently being used
 2. Replace it with a more efficient algorithm
-3. Return the optimized code with a comment explaining the algorithm
+3. Return ONLY the clean optimized code without complexity analysis comments
+
+IMPORTANT:
+- DO NOT include complexity analysis in comments (O(n), O(1), etc.)
+- DO NOT include algorithm explanations in the code
+- Just return clean, optimized, working code
 
 Format:
 ALGORITHM_NAME: [name like "Two-Pass Hash Set", "Binary Search", etc.]
 
 CODE:
 ```python
-[optimized code]
+[clean optimized code without complexity comments]
 ```"""
 
             try:
@@ -254,12 +259,14 @@ CODE:
 
 The docstring should include:
 - Purpose and what the function does
-- Algorithm used: {algorithm_name or 'current approach'}
 - Parameters with types and descriptions
 - Return value description
-- Time complexity: {complexity_analysis.get('time_complexity', 'O(n)')}
-- Space complexity: {complexity_analysis.get('space_complexity', 'O(1)')}
 - Example usage
+
+IMPORTANT:
+- DO NOT include complexity analysis (Time/Space O notation) in the docstring
+- DO NOT include algorithm explanations in the docstring
+- Keep it concise and focused on usage
 
 Return ONLY the code with the docstring added."""
 

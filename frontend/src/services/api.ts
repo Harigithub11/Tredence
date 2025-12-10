@@ -11,9 +11,15 @@ const api = axios.create({
 })
 
 export const apiClient = {
-  // Health check
+  // Direct axios methods for generic API calls
+  get: api.get.bind(api),
+  post: api.post.bind(api),
+  put: api.put.bind(api),
+  delete: api.delete.bind(api),
+
+  // Health check (at root, not /api/v1)
   health: async (): Promise<HealthResponse> => {
-    const { data } = await api.get<HealthResponse>('/health')
+    const { data } = await axios.get<HealthResponse>(`${import.meta.env.VITE_API_URL?.replace('/api/v1', '') || 'http://localhost:8001'}/health`)
     return data
   },
 

@@ -11,11 +11,12 @@ function App() {
       <Header activeView={activeView} onViewChange={setActiveView} />
 
       <main className="container mx-auto px-4 py-8">
-        {activeView === 'dashboard' ? (
+        <div className={activeView === 'dashboard' ? '' : 'hidden'}>
           <Dashboard />
-        ) : (
+        </div>
+        <div className={activeView === 'review' ? '' : 'hidden'}>
           <CodeReviewForm />
-        )}
+        </div>
       </main>
     </div>
   )

@@ -26,11 +26,36 @@ export default function Dashboard() {
 
   const loadDashboardData = async () => {
     try {
-      // In a real implementation, these would be actual API calls
-      // For now, we'll use mock data as the list endpoint doesn't exist yet
+      console.log('[Dashboard] Loading data...')
+      // Fetch stats summary
+      const statsResponse = await apiClient.get('/graph/stats/summary')
+      console.log('[Dashboard] Stats received:', statsResponse.data)
+      setStats({
+        total: statsResponse.data.total,
+        running: statsResponse.data.running,
+        completed: statsResponse.data.completed,
+        failed: statsResponse.data.failed,
+      })
+
+      // Fetch all runs
+      const runsResponse = await apiClient.get('/graph/runs/list', {
+        params: { limit: 50 }
+      })
+      console.log('[Dashboard] Runs received:', runsResponse.data.length)
+      const allRuns = runsResponse.data
+
+      // Separate active (running) and recent (completed/failed) runs
+      const active = allRuns.filter((run: WorkflowRun) => run.status === 'running')
+      const recent = allRuns.filter((run: WorkflowRun) =>
+        run.status === 'completed' || run.status === 'failed'
+      ).slice(0, 10)
+
+      console.log('[Dashboard] Active runs:', active.length, 'Recent runs:', recent.length)
+      setActiveRuns(active)
+      setRecentRuns(recent)
       setIsLoading(false)
     } catch (error) {
-      console.error('Failed to load dashboard data:', error)
+      console.error('[Dashboard] Failed to load dashboard data:', error)
       setIsLoading(false)
     }
   }

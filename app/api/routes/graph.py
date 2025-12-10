@@ -402,3 +402,91 @@ async def delete_graph(
         )
 
     await session.commit()
+
+
+@router.get("/runs/list", response_model=List[RunResponse])
+async def list_runs(
+    limit: int = 50,
+    status_filter: str = None,
+    session: AsyncSession = Depends(get_session)
+):
+    """
+    List all workflow runs with optional filtering.
+
+    **Parameters:**
+    - limit: Maximum number of runs to return (default 50)
+    - status_filter: Filter by status (pending, running, completed, failed)
+
+    **Returns:**
+    - List of run details
+    """
+    run_repo = RunRepository(session)
+
+    # Get runs from database
+    from sqlalchemy import select, desc
+    from app.database.models import RunModel
+
+    query = select(RunModel).order_by(desc(RunModel.started_at)).limit(limit)
+
+    if status_filter:
+        try:
+            status_enum = ExecutionStatus(status_filter.lower())
+            query = query.where(RunModel.status == status_enum)
+        except ValueError:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Invalid status: {status_filter}"
+            )
+
+    result = await session.execute(query)
+    runs = result.scalars().all()
+
+    return [RunResponse.model_validate(run) for run in runs]
+
+
+@router.get("/stats/summary")
+async def get_stats_summary(session: AsyncSession = Depends(get_session)):
+    """
+    Get workflow execution statistics.
+
+    **Returns:**
+    - Summary statistics including counts by status, avg execution time, success rate
+    """
+    from sqlalchemy import select, func
+    from app.database.models import RunModel
+
+    # Count by status
+    total_query = select(func.count(RunModel.id))
+    total_result = await session.execute(total_query)
+    total = total_result.scalar() or 0
+
+    running_query = select(func.count(RunModel.id)).where(RunModel.status == ExecutionStatus.RUNNING)
+    running_result = await session.execute(running_query)
+    running = running_result.scalar() or 0
+
+    completed_query = select(func.count(RunModel.id)).where(RunModel.status == ExecutionStatus.COMPLETED)
+    completed_result = await session.execute(completed_query)
+    completed = completed_result.scalar() or 0
+
+    failed_query = select(func.count(RunModel.id)).where(RunModel.status == ExecutionStatus.FAILED)
+    failed_result = await session.execute(failed_query)
+    failed = failed_result.scalar() or 0
+
+    # Average execution time (only completed runs)
+    avg_time_query = select(func.avg(RunModel.total_execution_time_ms)).where(
+        RunModel.status == ExecutionStatus.COMPLETED
+    )
+    avg_time_result = await session.execute(avg_time_query)
+    avg_execution_time_ms = avg_time_result.scalar()
+
+    # Success rate
+    success_rate = (completed / total * 100) if total > 0 else 0
+
+    return {
+        "total": total,
+        "running": running,
+        "completed": completed,
+        "failed": failed,
+        "avg_execution_time_ms": round(avg_execution_time_ms, 2) if avg_execution_time_ms else 0,
+        "success_rate": round(success_rate, 2)
+    }
