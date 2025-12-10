@@ -242,7 +242,7 @@ jobs:
 
       - name: Test Docker image
         run: |
-          docker-compose -f docker-compose.yml config
+          docker compose -f docker-compose.yml config
           echo "Docker Compose configuration is valid"
 
   # Coverage Report
