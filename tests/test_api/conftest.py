@@ -43,7 +43,15 @@ async def setup_test_database():
 
 @pytest.fixture
 async def test_client(setup_test_database):
-    """Create test client"""
+    """Create test client with /api/v1 prefix for API endpoints"""
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test/api/v1") as client:
+        yield client
+
+
+@pytest.fixture
+async def root_client(setup_test_database):
+    """Create test client for root-level endpoints (health, root)"""
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as client:
         yield client

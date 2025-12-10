@@ -241,9 +241,9 @@ async def test_delete_graph_then_try_to_run(test_client):
 
 
 @pytest.mark.asyncio
-async def test_root_endpoint(test_client):
+async def test_root_endpoint(root_client):
     """Test root endpoint returns API information"""
-    response = await test_client.get("/")
+    response = await root_client.get("/")
     assert response.status_code == 200
 
     data = response.json()
@@ -251,9 +251,9 @@ async def test_root_endpoint(test_client):
 
 
 @pytest.mark.asyncio
-async def test_health_check_structure(test_client):
+async def test_health_check_structure(root_client):
     """Test health check endpoint returns proper structure"""
-    response = await test_client.get("/health")
+    response = await root_client.get("/health")
     assert response.status_code == 200
 
     data = response.json()
