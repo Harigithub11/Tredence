@@ -39,7 +39,3 @@ jobs:
         id: codeql-analysis
         uses: github/codeql-action/analyze@v3
 
-      - name: Upload SARIF file
-        uses: github/codeql-action/upload-sarif@v3
-        with:
-          sarif_file: ${{ steps.codeql-analysis.outputs.sarif }}
