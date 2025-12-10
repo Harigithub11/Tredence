@@ -78,7 +78,7 @@ if settings.DEBUG:
     )
 
 # Include routers
-app.include_router(graph.router, prefix=settings.API_V1_PREFIX)
+app.include_router(graph.router, prefix=f"{settings.API_V1_PREFIX}/graph")
 
 
 @app.get("/", tags=["health"])

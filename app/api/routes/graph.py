@@ -25,7 +25,7 @@ from app.core.engine import WorkflowEngine
 from app.core.graph import GraphBuilder
 from app.core.state import WorkflowState
 
-router = APIRouter(prefix="/graph", tags=["graphs"])
+router = APIRouter(tags=["graphs"])
 
 
 @router.post("/create", response_model=GraphResponse, status_code=status.HTTP_201_CREATED)
