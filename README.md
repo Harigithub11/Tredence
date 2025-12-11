@@ -2,6 +2,24 @@
 
 A production-ready workflow orchestration engine with real-time dashboard for building multi-agent systems, created for Tredence AI Engineering Internship.
 
+## 🎬 Demo
+
+![Demo Video](Video.gif)
+
+## 📸 Screenshots
+
+### Code Input
+![Code Input](Images/1.png)
+
+### Dashboard Overview
+![Dashboard Overview](Images/2.png)
+
+### Analysis and Workflow Overview
+![Analysis and Workflow](Images/3.png)
+
+### Output Overview
+![Output Overview](Images/4.png)
+
 ## 🎯 Overview
 
 This project implements a minimal but complete workflow/graph engine inspired by LangGraph, featuring a **Code Review Mini-Agent** with hybrid test generation (pattern-based + LLM fallback) and a real-time React dashboard.
